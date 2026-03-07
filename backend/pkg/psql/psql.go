@@ -43,7 +43,7 @@ func LoadPSQLConfig() (*PSQLConfig, error) {
 	if err != nil {
 		return nil, err
 	}
-	maxConnIdleTime, err := time.ParseDuration(os.Getenv("PSQL_MAXCONNIDLETIME"))
+	maxConnIdleTime, err := strconv.Atoi(os.Getenv("PSQL_MAXCONNIDLETIME"))
 	if err != nil {
 		return nil, err
 	}
@@ -57,19 +57,20 @@ func LoadPSQLConfig() (*PSQLConfig, error) {
 		SSLMode:         os.Getenv("PSQL_SSLMODE"),
 		MaxConns:        int32(maxConns),
 		MinConns:        int32(minConns),
-		MaxConnIdleTime: maxConnIdleTime,
+		MaxConnIdleTime: time.Duration(maxConnIdleTime) * time.Second,
 	}, nil
 }
 
 func NewPSQL(ctx context.Context, cfg PSQLConfig) (*PSQL, error) {
-	poolConfig := &pgxpool.Config{}
-	poolConfig.ConnConfig.Host = cfg.Host
-	poolConfig.ConnConfig.Port = uint16(cfg.Port)
-	poolConfig.ConnConfig.User = cfg.User
-	poolConfig.ConnConfig.Password = cfg.Password
-	poolConfig.ConnConfig.Database = cfg.DBName
-	poolConfig.ConnConfig.TLSConfig = sslModeToTLSConfig(cfg.Host, cfg.SSLMode)
 
+	connString := fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=%s",
+		cfg.User, cfg.Password, cfg.Host, cfg.Port, cfg.DBName, cfg.SSLMode)
+
+	// Парсим её в корректно инициализированный pgxpool.Config
+	poolConfig, err := pgxpool.ParseConfig(connString)
+	if err != nil {
+		return nil, fmt.Errorf("ошибка разбора конфигурации: %w", err)
+	}
 	poolConfig.MaxConns = cfg.MaxConns
 	poolConfig.MinConns = cfg.MinConns
 	poolConfig.MaxConnIdleTime = cfg.MaxConnIdleTime
