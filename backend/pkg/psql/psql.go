@@ -2,6 +2,7 @@ package psql
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"os"
 	"strconv"
@@ -61,19 +62,13 @@ func LoadPSQLConfig() (*PSQLConfig, error) {
 }
 
 func NewPSQL(ctx context.Context, cfg PSQLConfig) (*PSQL, error) {
-	connStr := fmt.Sprintf(
-		"postgres://%v:%v@%v:%v/%v?sslmode=%s",
-		cfg.User,
-		cfg.Password,
-		cfg.Host,
-		cfg.Port,
-		cfg.DBName,
-		cfg.SSLMode,
-	)
-	poolConfig, err := pgxpool.ParseConfig(connStr)
-	if err != nil {
-		return nil, err
-	}
+	poolConfig := &pgxpool.Config{}
+	poolConfig.ConnConfig.Host = cfg.Host
+	poolConfig.ConnConfig.Port = uint16(cfg.Port)
+	poolConfig.ConnConfig.User = cfg.User
+	poolConfig.ConnConfig.Password = cfg.Password
+	poolConfig.ConnConfig.Database = cfg.DBName
+	poolConfig.ConnConfig.TLSConfig = sslModeToTLSConfig(cfg.Host, cfg.SSLMode)
 
 	poolConfig.MaxConns = cfg.MaxConns
 	poolConfig.MinConns = cfg.MinConns
@@ -93,6 +88,19 @@ func NewPSQL(ctx context.Context, cfg PSQLConfig) (*PSQL, error) {
 
 func (p *PSQL) Close() {
 	p.Pool.Close()
+}
+
+func sslModeToTLSConfig(host, mode string) *tls.Config {
+	switch mode {
+	case "disable":
+		return nil
+	case "require":
+		return &tls.Config{InsecureSkipVerify: true}
+	case "verify-full":
+		return &tls.Config{ServerName: host}
+	default:
+		return nil
+	}
 }
 
 func (p *PSQL) RunMigrations(ctx context.Context, path string) error {
