@@ -2,7 +2,6 @@ package psql
 
 import (
 	"context"
-	"crypto/tls"
 	"fmt"
 	"os"
 	"strconv"
@@ -89,19 +88,6 @@ func NewPSQL(ctx context.Context, cfg PSQLConfig) (*PSQL, error) {
 
 func (p *PSQL) Close() {
 	p.Pool.Close()
-}
-
-func sslModeToTLSConfig(host, mode string) *tls.Config {
-	switch mode {
-	case "disable":
-		return nil
-	case "require":
-		return &tls.Config{InsecureSkipVerify: true}
-	case "verify-full":
-		return &tls.Config{ServerName: host}
-	default:
-		return nil
-	}
 }
 
 func (p *PSQL) RunMigrations(ctx context.Context, path string) error {

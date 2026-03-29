@@ -11,6 +11,7 @@ import (
 
 	"pkg/psql"
 	"user_service/internal/database"
+	"user_service/internal/models"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -34,6 +35,7 @@ func TestMain(t *testing.T) {
 	ChangePassword_WrongOldPassword(t, db)
 	UpdateUser_InvalidGUID(t, db)
 	UpdateUser_Success(t, db)
+	MakeAdmin_InvalidGUID(t, db)
 
 }
 
@@ -41,7 +43,7 @@ func CreateUser_Success(t *testing.T, db *database.Database) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
 
-	user := database.User{
+	user := models.User{
 		Login:    "Aboba777",
 		Password: "#KCV_!#FMOQEIG@#",
 		Name:     "Василий Негодник",
@@ -59,7 +61,7 @@ func CreateUser_LoginBusy(t *testing.T, db *database.Database) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
 
-	user := database.User{
+	user := models.User{
 		Login:    "BOSS_KFS",
 		Password: "#KCV_!#FMOQEIG@#",
 		Name:     "Гриша Буборин",
@@ -68,21 +70,21 @@ func CreateUser_LoginBusy(t *testing.T, db *database.Database) {
 	assert.NoError(t, err)
 	assert.NotEqual(t, uuid.Nil, guid)
 
-	user = database.User{
+	user = models.User{
 		Login:    "BOSS_KFS",
 		Password: "FEWge23rtg3re",
 		Name:     "Били Шмили",
 	}
 	guid, err = db.CreateUser(ctx, user)
 	assert.Equal(t, uuid.Nil, guid)
-	assert.Equal(t, database.ErrLoginBusy, err)
+	assert.Equal(t, models.ErrLoginBusy, err)
 }
 
 func VerifyUser_Success(t *testing.T, db *database.Database) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
 
-	user := database.User{
+	user := models.User{
 		Login:    "Pikmi_Banny",
 		Password: "FEWge23rtg3re",
 		Name:     "Вася Ржавый",
@@ -105,7 +107,7 @@ func VerifyUser_InvalidPassword(t *testing.T, db *database.Database) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
 
-	user := database.User{
+	user := models.User{
 		Login:    "ldfmwepv---",
 		Password: "Aefwbewe",
 	}
@@ -118,7 +120,7 @@ func VerifyUser_InvalidPassword(t *testing.T, db *database.Database) {
 
 	guid, err := db.VerifyUser(ctx, user.Login, "wrong_password")
 	assert.Equal(t, uuid.Nil, guid)
-	assert.ErrorIs(t, err, database.ErrInvalidPassword, err)
+	assert.ErrorIs(t, err, models.ErrInvalidPassword, err)
 }
 
 func VerifyUser_InvalidLogin(t *testing.T, db *database.Database) {
@@ -127,14 +129,14 @@ func VerifyUser_InvalidLogin(t *testing.T, db *database.Database) {
 
 	guid, err := db.VerifyUser(ctx, "wrong_login", "---------")
 	assert.Equal(t, uuid.Nil, guid)
-	assert.ErrorIs(t, err, database.ErrLoginNotFound, err)
+	assert.ErrorIs(t, err, models.ErrLoginNotFound, err)
 }
 
 func MakeAdmin_Success(t *testing.T, db *database.Database) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
 
-	user := database.User{
+	user := models.User{
 		Login:    "admin_user",
 		Password: "admin_password",
 	}
@@ -143,7 +145,7 @@ func MakeAdmin_Success(t *testing.T, db *database.Database) {
 	user.GUID, err = db.CreateUser(ctx, user)
 	assert.NoError(t, err)
 
-	_, err = db.MakeAdmin(ctx, user.GUID)
+	err = db.MakeAdmin(ctx, user.GUID)
 	assert.NoError(t, err)
 
 	user, err = db.GetUserByGUID(ctx, user.GUID)
@@ -151,11 +153,19 @@ func MakeAdmin_Success(t *testing.T, db *database.Database) {
 	assert.True(t, user.Admin)
 }
 
+func MakeAdmin_InvalidGUID(t *testing.T, db *database.Database) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
+	defer cancel()
+
+	err := db.MakeAdmin(ctx, uuid.Nil)
+	assert.ErrorIs(t, err, models.ErrGUIDNotFound)
+}
+
 func ChangePassword_Success(t *testing.T, db *database.Database) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
 
-	user := database.User{
+	user := models.User{
 		Login:    "test_user",
 		Password: "test_password",
 	}
@@ -180,7 +190,7 @@ func ChangePassword_WrongOldPassword(t *testing.T, db *database.Database) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
 
-	user := database.User{
+	user := models.User{
 		Login:    "test_user_2",
 		Password: "test_password_2",
 	}
@@ -197,7 +207,7 @@ func UpdateUser_InvalidGUID(t *testing.T, db *database.Database) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
 
-	err := db.UpdateUser(ctx, database.User{})
+	err := db.UpdateUser(ctx, models.User{})
 	assert.Error(t, err)
 }
 
@@ -205,7 +215,7 @@ func UpdateUser_Success(t *testing.T, db *database.Database) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
 
-	user := database.User{
+	user := models.User{
 		Login:    "test_user_3",
 		Password: "test_password_3",
 	}

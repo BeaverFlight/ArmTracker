@@ -2,10 +2,10 @@ package database
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
+	"user_service/internal/models"
 
 	"pkg/psql"
 
@@ -14,28 +14,8 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-var (
-	ErrLoginBusy       = errors.New("данный логин уже занят")
-	ErrLoginNotFound   = errors.New("неправильный логин или пароль")
-	ErrInvalidPassword = errors.New("неправильный логин или пароль")
-	ErrGUIDNotFound    = errors.New("пользователь не найден")
-	ErrNoUpdateFields  = errors.New("нет полей для обновления")
-)
-
 type Database struct {
 	pool *psql.PSQL
-}
-
-type User struct {
-	GUID             uuid.UUID `db:"id"`
-	Login            string    `db:"login"`
-	Password         string    `db:"password"`
-	Name             string    `db:"name"`
-	Height           int       `db:"height"`
-	Weight           int       `db:"weight"`
-	Age              int       `db:"age"`
-	Admin            bool      `db:"admin"`
-	RegistrationDate time.Time `db:"registration_date"`
 }
 
 func NewDatabase(psql *psql.PSQL) *Database {
@@ -50,7 +30,7 @@ func (d *Database) RunMigrations(ctx context.Context, migrationsPath string) err
 	return d.pool.RunMigrations(ctx, migrationsPath)
 }
 
-func (d *Database) CreateUser(ctx context.Context, user User) (uuid.UUID, error) {
+func (d *Database) CreateUser(ctx context.Context, user models.User) (uuid.UUID, error) {
 	hashPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
 	if err != nil {
 		return uuid.Nil, fmt.Errorf("Database/CreateUser generateHashPassword: %w", err)
@@ -64,7 +44,7 @@ func (d *Database) CreateUser(ctx context.Context, user User) (uuid.UUID, error)
 
 	if err != nil {
 		if strings.Contains(err.Error(), "duplicate key value") {
-			return uuid.Nil, ErrLoginBusy
+			return uuid.Nil, models.ErrLoginBusy
 		}
 		return uuid.Nil, fmt.Errorf("Database/CreateUser insert: %w", err)
 	}
@@ -72,49 +52,49 @@ func (d *Database) CreateUser(ctx context.Context, user User) (uuid.UUID, error)
 	return guid, nil
 }
 
-func (d *Database) GetUserByLogin(ctx context.Context, login string) (User, error) {
+func (d *Database) GetUserByLogin(ctx context.Context, login string) (models.User, error) {
 	selectQuery := "SELECT id, login, password, name, height, weight, age, admin, registration_date FROM users WHERE login = $1"
-	var user User
+	var user models.User
 
 	err := d.pool.Pool.QueryRow(ctx, selectQuery, login).Scan(&user.GUID, &user.Login, &user.Password, &user.Name, &user.Height, &user.Weight, &user.Age, &user.Admin, &user.RegistrationDate)
 
 	if err == pgx.ErrNoRows {
-		return User{}, fmt.Errorf("Database/GetUserByLogin: %w", ErrLoginNotFound)
+		return models.User{}, fmt.Errorf("Database/GetUserByLogin: %w", models.ErrLoginNotFound)
 	}
 
 	if err != nil {
-		return User{}, fmt.Errorf("Database/GetUserByLogin: %w", err)
+		return models.User{}, fmt.Errorf("Database/GetUserByLogin: %w", err)
 	}
 
 	user.Password = ""
 	return user, nil
 }
 
-func (d *Database) GetUserByGUID(ctx context.Context, guid uuid.UUID) (User, error) {
+func (d *Database) GetUserByGUID(ctx context.Context, guid uuid.UUID) (models.User, error) {
 	selectQuery := "SELECT id, login, password, name, height, weight, age, admin, registration_date FROM users WHERE id = $1"
-	var user User
+	var user models.User
 
 	err := d.pool.Pool.QueryRow(ctx, selectQuery, guid.String()).Scan(&user.GUID, &user.Login, &user.Password, &user.Name, &user.Height, &user.Weight, &user.Age, &user.Admin, &user.RegistrationDate)
 
 	if err == pgx.ErrNoRows {
-		return User{}, fmt.Errorf("Database/GetUserByGUID: %w", ErrGUIDNotFound)
+		return models.User{}, fmt.Errorf("Database/GetUserByGUID: %w", models.ErrGUIDNotFound)
 	}
 	if err != nil {
-		return User{}, fmt.Errorf("Database/GetUserByGUID: %w", err)
+		return models.User{}, fmt.Errorf("Database/GetUserByGUID: %w", err)
 	}
 
 	user.Password = ""
 	return user, nil
 }
 
-func (d *Database) VerifyUser(ctx context.Context, login string, password string) (uuid.UUID, error) {
+func (d *Database) VerifyUser(ctx context.Context, login, password string) (uuid.UUID, error) {
 	selectQuery := "SELECT id, login, password,  admin FROM users WHERE login = $1"
-	var user User
+	var user models.User
 
 	err := d.pool.Pool.QueryRow(ctx, selectQuery, login).Scan(&user.GUID, &user.Login, &user.Password, &user.Admin)
 
 	if err == pgx.ErrNoRows {
-		return uuid.Nil, fmt.Errorf("Database/VerifyUser: %w", ErrLoginNotFound)
+		return uuid.Nil, fmt.Errorf("Database/VerifyUser: %w", models.ErrLoginNotFound)
 	}
 	if err != nil {
 		return uuid.Nil, fmt.Errorf("Database/VerifyUser: %w", err)
@@ -122,27 +102,32 @@ func (d *Database) VerifyUser(ctx context.Context, login string, password string
 
 	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password))
 	if err != nil {
-		return uuid.Nil, fmt.Errorf("Database/VerifyUser: %w", ErrInvalidPassword)
+		return uuid.Nil, fmt.Errorf("Database/VerifyUser: %w", models.ErrInvalidPassword)
 	}
-
+	// TODO: изменить защиту от брут форса на адаптивную, экспонициальную
+	time.Sleep(500 * time.Millisecond)
 	user.Password = ""
 	return user.GUID, nil
 }
 
-func (d *Database) MakeAdmin(ctx context.Context, guid uuid.UUID) (uuid.UUID, error) {
+func (d *Database) MakeAdmin(ctx context.Context, guid uuid.UUID) error {
 	updateQuery := `UPDATE users
 	                       SET admin = true
 						   WHERE id=$1`
 
-	_, err := d.pool.Pool.Exec(ctx, updateQuery, guid.String())
+	result, err := d.pool.Pool.Exec(ctx, updateQuery, guid.String())
 	if err != nil {
-		return uuid.Nil, fmt.Errorf("Database/MakeAdmin: %w", err)
+		return fmt.Errorf("Database/MakeAdmin: %w", err)
 	}
 
-	return guid, nil
+	if result.RowsAffected() == 0 {
+		return fmt.Errorf("Database/MakeAdmin: %w", models.ErrGUIDNotFound)
+	}
+
+	return nil
 }
 
-func (d *Database) UpdateUser(ctx context.Context, user User) error {
+func (d *Database) UpdateUser(ctx context.Context, user models.User) error {
 	updateQuery := `UPDATE users
 	                       SET `
 
@@ -150,7 +135,7 @@ func (d *Database) UpdateUser(ctx context.Context, user User) error {
 	updateQuery += query
 
 	if index == 1 {
-		return fmt.Errorf("Database/UpdateUser: %w", ErrNoUpdateFields)
+		return fmt.Errorf("Database/UpdateUser: %w", models.ErrNoUpdateFields)
 	}
 
 	updateQuery += fmt.Sprintf(` WHERE id=$%d`, index)
@@ -158,13 +143,13 @@ func (d *Database) UpdateUser(ctx context.Context, user User) error {
 
 	_, err := d.pool.Pool.Exec(ctx, updateQuery, args...)
 	if err != nil {
-		return err
+		return fmt.Errorf("Database/UpdateUser: %w", err)
 	}
 
 	return nil
 }
 
-func (d *Database) selectParameters(user User, sep string) (string, []any, int) {
+func (d *Database) selectParameters(user models.User, sep string) (string, []any, int) {
 	query := ""
 	args := []any{}
 	index := 1
@@ -217,7 +202,7 @@ func (d *Database) ChangePassword(ctx context.Context, userID uuid.UUID, oldPass
 	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(oldPassword))
 
 	if err != nil {
-		return fmt.Errorf("Database/ChangePassword: %w", ErrInvalidPassword)
+		return fmt.Errorf("Database/ChangePassword: %w", models.ErrInvalidPassword)
 	}
 
 	hashPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
@@ -233,17 +218,17 @@ func (d *Database) ChangePassword(ctx context.Context, userID uuid.UUID, oldPass
 	return nil
 }
 
-func (d *Database) getUserByGUIDWithPassword(ctx context.Context, guid uuid.UUID) (User, error) {
+func (d *Database) getUserByGUIDWithPassword(ctx context.Context, guid uuid.UUID) (models.User, error) {
 	selectQuery := "SELECT id, login, password, name, height, weight, age, admin, registration_date FROM users WHERE id = $1"
-	var user User
+	var user models.User
 
 	err := d.pool.Pool.QueryRow(ctx, selectQuery, guid.String()).Scan(&user.GUID, &user.Login, &user.Password, &user.Name, &user.Height, &user.Weight, &user.Age, &user.Admin, &user.RegistrationDate)
 
 	if err == pgx.ErrNoRows {
-		return User{}, fmt.Errorf("Database/GetUserByGUID: %w", ErrGUIDNotFound)
+		return models.User{}, fmt.Errorf("Database/GetUserByGUID: %w", models.ErrGUIDNotFound)
 	}
 	if err != nil {
-		return User{}, fmt.Errorf("Database/GetUserByGUID: %w", err)
+		return models.User{}, fmt.Errorf("Database/GetUserByGUID: %w", err)
 	}
 
 	return user, nil
