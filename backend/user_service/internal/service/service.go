@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"time"
 	"user_service/internal/models"
 
 	"github.com/google/uuid"
@@ -123,6 +124,9 @@ func (s *Service) VerifyUser(ctx context.Context, login, password string) (uuid.
 	}
 
 	guid, err := s.repo.VerifyUser(ctx, login, password)
+
+	// TODO: изменить защиту от брут форса на адаптивную, экспонициальную
+	time.Sleep(500 * time.Millisecond)
 
 	if errors.Is(err, models.ErrInvalidPassword) {
 		// TODO: Считать попытки и блокировать

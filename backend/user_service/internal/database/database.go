@@ -104,8 +104,6 @@ func (d *Database) VerifyUser(ctx context.Context, login, password string) (uuid
 	if err != nil {
 		return uuid.Nil, fmt.Errorf("Database/VerifyUser: %w", models.ErrInvalidPassword)
 	}
-	// TODO: изменить защиту от брут форса на адаптивную, экспонициальную
-	time.Sleep(500 * time.Millisecond)
 	user.Password = ""
 	return user.GUID, nil
 }

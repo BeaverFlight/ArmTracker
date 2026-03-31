@@ -1,6 +1,9 @@
 package models
 
-import "errors"
+import (
+	"errors"
+	"net/http"
+)
 
 // Ошибки бизнес-логики
 var (
@@ -22,3 +25,28 @@ var (
 	ErrGUIDNotFound    = errors.New("пользователь не найден")
 	ErrNoUpdateFields  = errors.New("нет полей для обновления")
 )
+
+var knownErrors = []struct {
+	err  error
+	code int
+}{
+	{ErrLoginBusy, http.StatusConflict},
+	{ErrLoginIsShort, http.StatusBadRequest},
+	{ErrLoginIsLong, http.StatusBadRequest},
+	{ErrPasswordIsShort, http.StatusBadRequest},
+	{ErrPasswordIsLong, http.StatusBadRequest},
+	{ErrGUIDNotFound, http.StatusNotFound},
+	{ErrLoginNotFound, http.StatusNotFound},
+	{ErrAuthenticationFailed, http.StatusUnauthorized},
+	{ErrNoUpdateFields, http.StatusBadRequest},
+	{ErrNameIsLong, http.StatusBadRequest},
+}
+
+func HTTPCode(err error) int {
+	for _, e := range knownErrors {
+		if errors.Is(err, e.err) {
+			return e.code
+		}
+	}
+	return 0
+}

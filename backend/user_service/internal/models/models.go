@@ -17,3 +17,9 @@ type User struct {
 	Admin            bool      `db:"admin"`
 	RegistrationDate time.Time `db:"registration_date"`
 }
+
+type UserChangePassword struct {
+	OldPassword string
+	NewPassword string
+	GUID        uuid.UUID
+}
