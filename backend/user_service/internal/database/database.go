@@ -2,6 +2,7 @@ package database
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -58,7 +59,7 @@ func (d *Database) GetUserByLogin(ctx context.Context, login string) (models.Use
 
 	err := d.pool.Pool.QueryRow(ctx, selectQuery, login).Scan(&user.GUID, &user.Login, &user.Password, &user.Name, &user.Height, &user.Weight, &user.Age, &user.Admin, &user.RegistrationDate)
 
-	if err == pgx.ErrNoRows {
+	if errors.Is(err, pgx.ErrNoRows) {
 		return models.User{}, fmt.Errorf("Database/GetUserByLogin: %w", models.ErrLoginNotFound)
 	}
 
@@ -76,7 +77,7 @@ func (d *Database) GetUserByGUID(ctx context.Context, guid uuid.UUID) (models.Us
 
 	err := d.pool.Pool.QueryRow(ctx, selectQuery, guid.String()).Scan(&user.GUID, &user.Login, &user.Password, &user.Name, &user.Height, &user.Weight, &user.Age, &user.Admin, &user.RegistrationDate)
 
-	if err == pgx.ErrNoRows {
+	if errors.Is(err, pgx.ErrNoRows) {
 		return models.User{}, fmt.Errorf("Database/GetUserByGUID: %w", models.ErrGUIDNotFound)
 	}
 	if err != nil {
@@ -93,7 +94,7 @@ func (d *Database) VerifyUser(ctx context.Context, login, password string) (uuid
 
 	err := d.pool.Pool.QueryRow(ctx, selectQuery, login).Scan(&user.GUID, &user.Login, &user.Password, &user.Admin)
 
-	if err == pgx.ErrNoRows {
+	if errors.Is(err, pgx.ErrNoRows) {
 		return uuid.Nil, fmt.Errorf("Database/VerifyUser: %w", models.ErrLoginNotFound)
 	}
 	if err != nil {
@@ -222,7 +223,7 @@ func (d *Database) getUserByGUIDWithPassword(ctx context.Context, guid uuid.UUID
 
 	err := d.pool.Pool.QueryRow(ctx, selectQuery, guid.String()).Scan(&user.GUID, &user.Login, &user.Password, &user.Name, &user.Height, &user.Weight, &user.Age, &user.Admin, &user.RegistrationDate)
 
-	if err == pgx.ErrNoRows {
+	if errors.Is(err, pgx.ErrNoRows) {
 		return models.User{}, fmt.Errorf("Database/GetUserByGUID: %w", models.ErrGUIDNotFound)
 	}
 	if err != nil {

@@ -57,9 +57,9 @@ func (h *Handlers) CreateUser(c *gin.Context) {
 }
 
 func (h *Handlers) GetUserByGUID(c *gin.Context) {
-	guid := uuid.Nil
-	if err := c.ShouldBindBodyWithJSON(&guid); err != nil {
-		respond.BadRequest(c, "Невалидный JSON")
+	guid, err := uuid.Parse(c.Param("guid"))
+	if err != nil {
+		respond.BadRequest(c, "Невалидный GUID")
 		return
 	}
 
@@ -73,11 +73,7 @@ func (h *Handlers) GetUserByGUID(c *gin.Context) {
 }
 
 func (h *Handlers) GetUserByLogin(c *gin.Context) {
-	login := ""
-	if err := c.ShouldBindBodyWithJSON(&login); err != nil {
-		respond.BadRequest(c, "Невалидный JSON")
-		return
-	}
+	login := c.Query("login")
 
 	ctx := c.Request.Context()
 	user, err := h.srv.GetUserByLogin(ctx, login)
@@ -106,14 +102,14 @@ func (h *Handlers) VerifyUser(c *gin.Context) {
 }
 
 func (h *Handlers) MakeAdmin(c *gin.Context) {
-	guid := uuid.Nil
-	if err := c.ShouldBindBodyWithJSON(&guid); err != nil {
-		respond.BadRequest(c, "Невалидный JSON")
+	guid, err := uuid.Parse(c.Param("guid"))
+	if err != nil {
+		respond.BadRequest(c, "Невалидный GUID")
 		return
 	}
 
 	ctx := c.Request.Context()
-	err := h.srv.MakeAdmin(ctx, guid)
+	err = h.srv.MakeAdmin(ctx, guid)
 	if err != nil {
 		errorHandler(c, err)
 		return

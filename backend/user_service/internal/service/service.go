@@ -166,12 +166,7 @@ func (s *Service) MakeAdmin(ctx context.Context, guid uuid.UUID) error {
 
 func (s *Service) UpdateUser(ctx context.Context, user models.User) error {
 
-	err := s.validateLogin(user.Login)
-	if err != nil {
-		return err
-	}
-
-	err = s.repo.UpdateUser(ctx, user)
+	err := s.repo.UpdateUser(ctx, user)
 
 	if errors.Is(err, models.ErrGUIDNotFound) {
 		return models.ErrGUIDNotFound
