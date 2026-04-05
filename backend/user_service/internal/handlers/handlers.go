@@ -151,3 +151,7 @@ func (h *Handlers) ChangePassword(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"guid": password.GUID})
 }
+
+func (h *Handlers) Check(c *gin.Context) {
+	c.String(http.StatusOK, "Ok")
+}
