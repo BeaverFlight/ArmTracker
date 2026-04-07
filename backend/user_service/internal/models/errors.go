@@ -15,6 +15,7 @@ var (
 	ErrRegistrationFailed   = errors.New("регистрация не удалась")
 	ErrUnknown              = errors.New("неизвестная ошибка")
 	ErrAuthenticationFailed = errors.New("неправильный логин или пароль")
+	ErrInvalidEmail         = errors.New("несуществующая почта")
 )
 
 // Ошибки базы данных
@@ -40,6 +41,7 @@ var knownErrors = []struct {
 	{ErrAuthenticationFailed, http.StatusUnauthorized},
 	{ErrNoUpdateFields, http.StatusBadRequest},
 	{ErrNameIsLong, http.StatusBadRequest},
+	{ErrInvalidEmail, http.StatusBadRequest},
 }
 
 func HTTPCode(err error) int {

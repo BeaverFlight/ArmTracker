@@ -10,11 +10,13 @@ import (
 	"time"
 
 	"pkg/psql"
+	"pkg/roles"
 	"user_service/internal/database"
 	"user_service/internal/models"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
 )
 
@@ -29,13 +31,13 @@ func TestMain(t *testing.T) {
 	VerifyUser_Success(t, db)
 	VerifyUser_InvalidPassword(t, db)
 	VerifyUser_InvalidLogin(t, db)
-	MakeAdmin_Success(t, db)
+	SetRole_Success(t, db)
 	ChangePassword_Success(t, db)
 	ChangePassword_InvalidGUID(t, db)
 	ChangePassword_WrongOldPassword(t, db)
 	UpdateUser_InvalidGUID(t, db)
 	UpdateUser_Success(t, db)
-	MakeAdmin_InvalidGUID(t, db)
+	SetRole_InvalidGUID(t, db)
 
 }
 
@@ -45,12 +47,13 @@ func CreateUser_Success(t *testing.T, db *database.Database) {
 
 	user := models.User{
 		Login:    "Aboba777",
+		Email:    "aboba_2005@yandex.ru",
 		Password: "#KCV_!#FMOQEIG@#",
 		Name:     "Василий Негодник",
 		Height:   235,
 		Weight:   150,
 		Age:      19,
-		Admin:    false,
+		Role:     roles.RoleUser,
 	}
 	guid, err := db.CreateUser(ctx, user)
 	assert.NoError(t, err)
@@ -88,17 +91,20 @@ func VerifyUser_Success(t *testing.T, db *database.Database) {
 		Login:    "Pikmi_Banny",
 		Password: "FEWge23rtg3re",
 		Name:     "Вася Ржавый",
+		Email:    "baba@yandex.ru",
+		Role:     roles.RoleAdmin,
 	}
 	var err error
 
 	user.GUID, err = db.CreateUser(ctx, user)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotEqual(t, uuid.Nil, user.GUID)
 
-	guid, err := db.VerifyUser(ctx, user.Login, user.Password)
+	guid, role, err := db.VerifyUser(ctx, user.Login, user.Password)
 
 	assert.NoError(t, err)
+	assert.Equal(t, roles.RoleAdmin, role)
 	assert.NotEqual(t, uuid.Nil, guid)
 	assert.Equal(t, user.GUID, guid)
 }
@@ -110,16 +116,19 @@ func VerifyUser_InvalidPassword(t *testing.T, db *database.Database) {
 	user := models.User{
 		Login:    "ldfmwepv---",
 		Password: "Aefwbewe",
+		Email:    "tgrgber@yandex.ru",
+		Role:     roles.RoleCoach,
 	}
 	var err error
 
 	user.GUID, err = db.CreateUser(ctx, user)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotEqual(t, uuid.Nil, user.GUID)
 
-	guid, err := db.VerifyUser(ctx, user.Login, "wrong_password")
+	guid, role, err := db.VerifyUser(ctx, user.Login, "wrong_password")
 	assert.Equal(t, uuid.Nil, guid)
+	assert.Equal(t, roles.RoleNone, role)
 	assert.ErrorIs(t, err, models.ErrInvalidPassword, err)
 }
 
@@ -127,37 +136,39 @@ func VerifyUser_InvalidLogin(t *testing.T, db *database.Database) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
 
-	guid, err := db.VerifyUser(ctx, "wrong_login", "---------")
+	guid, _, err := db.VerifyUser(ctx, "wrong_login", "---------")
 	assert.Equal(t, uuid.Nil, guid)
 	assert.ErrorIs(t, err, models.ErrLoginNotFound, err)
 }
 
-func MakeAdmin_Success(t *testing.T, db *database.Database) {
+func SetRole_Success(t *testing.T, db *database.Database) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
 
 	user := models.User{
 		Login:    "admin_user",
 		Password: "admin_password",
+		Email:    "sdcsdvwef@mail.ru",
+		Role:     roles.RoleAdmin,
 	}
 	var err error
 
 	user.GUID, err = db.CreateUser(ctx, user)
 	assert.NoError(t, err)
 
-	err = db.MakeAdmin(ctx, user.GUID)
+	err = db.SetRole(ctx, user.GUID, user.Role)
 	assert.NoError(t, err)
 
 	user, err = db.GetUserByGUID(ctx, user.GUID)
 	assert.NoError(t, err)
-	assert.True(t, user.Admin)
+	assert.Equal(t, roles.RoleAdmin, user.Role)
 }
 
-func MakeAdmin_InvalidGUID(t *testing.T, db *database.Database) {
+func SetRole_InvalidGUID(t *testing.T, db *database.Database) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
 
-	err := db.MakeAdmin(ctx, uuid.Nil)
+	err := db.SetRole(ctx, uuid.Nil, roles.RoleCoach)
 	assert.ErrorIs(t, err, models.ErrGUIDNotFound)
 }
 
@@ -168,6 +179,7 @@ func ChangePassword_Success(t *testing.T, db *database.Database) {
 	user := models.User{
 		Login:    "test_user",
 		Password: "test_password",
+		Email:    "lfsdflwepf@gmail.com",
 	}
 	var err error
 
@@ -193,6 +205,7 @@ func ChangePassword_WrongOldPassword(t *testing.T, db *database.Database) {
 	user := models.User{
 		Login:    "test_user_2",
 		Password: "test_password_2",
+		Email:    "egrerg@tt.net",
 	}
 	var err error
 
@@ -218,6 +231,7 @@ func UpdateUser_Success(t *testing.T, db *database.Database) {
 	user := models.User{
 		Login:    "test_user_3",
 		Password: "test_password_3",
+		Email:    "Valid@bbb.net",
 	}
 	var err error
 
@@ -281,6 +295,10 @@ func setupTestDB() (*database.Database, func(), error) {
 		MinConns:        0,
 		MaxConnIdleTime: 30,
 	})
+
+	if err != nil {
+		return nil, nil, err
+	}
 
 	db := database.NewDatabase(p)
 

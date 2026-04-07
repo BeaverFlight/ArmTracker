@@ -3,8 +3,10 @@ package service
 import (
 	"context"
 	"errors"
+	"pkg/roles"
 	"user_service/internal/models"
 
+	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
 )
 
@@ -12,8 +14,8 @@ type UserRepository interface {
 	GetUserByGUID(ctx context.Context, guid uuid.UUID) (models.User, error)
 	GetUserByLogin(ctx context.Context, login string) (models.User, error)
 	CreateUser(ctx context.Context, user models.User) (uuid.UUID, error)
-	VerifyUser(ctx context.Context, login, password string) (uuid.UUID, error)
-	MakeAdmin(ctx context.Context, guid uuid.UUID) error
+	VerifyUser(ctx context.Context, login, password string) (uuid.UUID, roles.Role, error)
+	SetRole(ctx context.Context, guid uuid.UUID, role roles.Role) error
 	UpdateUser(ctx context.Context, user models.User) error
 	ChangePassword(ctx context.Context, guid uuid.UUID, oldPassword, newPassword string) error
 }
@@ -36,6 +38,10 @@ func (s *Service) CreateUser(ctx context.Context, user models.User) (uuid.UUID, 
 	err = s.validatePassword(user.Password)
 	if err != nil {
 		return uuid.Nil, err
+	}
+	err = validator.New().Var(user.Email, "email")
+	if err != nil {
+		return uuid.Nil, models.ErrInvalidEmail
 	}
 
 	guid, err := s.repo.CreateUser(ctx, user)
@@ -110,41 +116,41 @@ func (s *Service) GetUserByLogin(ctx context.Context, login string) (models.User
 	return user, nil
 }
 
-func (s *Service) VerifyUser(ctx context.Context, login, password string) (uuid.UUID, error) {
+func (s *Service) VerifyUser(ctx context.Context, login, password string) (uuid.UUID, roles.Role, error) {
 	err := s.validateLogin(login)
 	if err != nil {
-		return uuid.Nil, err
+		return uuid.Nil, roles.RoleNone, err
 	}
 
 	err = s.validatePassword(password)
 	if err != nil {
-		return uuid.Nil, err
+		return uuid.Nil, roles.RoleNone, err
 	}
 
-	guid, err := s.repo.VerifyUser(ctx, login, password)
+	guid, role, err := s.repo.VerifyUser(ctx, login, password)
 
 	if errors.Is(err, models.ErrInvalidPassword) {
-		return uuid.Nil, models.ErrAuthenticationFailed
+		return uuid.Nil, roles.RoleNone, models.ErrAuthenticationFailed
 	}
 
 	if errors.Is(err, models.ErrLoginNotFound) {
-		return uuid.Nil, models.ErrAuthenticationFailed
+		return uuid.Nil, roles.RoleNone, models.ErrAuthenticationFailed
 	}
 
 	if err != nil {
-		return uuid.Nil, models.ErrUnknown
+		return uuid.Nil, roles.RoleNone, models.ErrUnknown
 	}
 
-	return guid, nil
+	return guid, role, nil
 }
 
-func (s *Service) MakeAdmin(ctx context.Context, guid uuid.UUID) error {
+func (s *Service) SetRole(ctx context.Context, guid uuid.UUID, role roles.Role) error {
 
 	if guid == uuid.Nil {
 		return models.ErrGUIDNotFound
 	}
 
-	err := s.repo.MakeAdmin(ctx, guid)
+	err := s.repo.SetRole(ctx, guid, role)
 
 	if errors.Is(err, models.ErrGUIDNotFound) {
 		return models.ErrGUIDNotFound

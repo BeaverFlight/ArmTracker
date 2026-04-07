@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"pkg/roles"
 	"testing"
 	"user_service/internal/handlers"
 	"user_service/internal/models"
@@ -236,7 +237,7 @@ func TestVerifyUser(t *testing.T) {
 	tests := []struct {
 		name       string
 		body       any
-		srvFn      func(ctx context.Context, login, password string) (uuid.UUID, error)
+		srvFn      func(ctx context.Context, login, password string) (uuid.UUID, roles.Role, error)
 		wantStatus int
 	}{
 		{
@@ -245,8 +246,8 @@ func TestVerifyUser(t *testing.T) {
 				Password: "valid_password",
 				Login:    "valid_Login",
 			},
-			srvFn: func(ctx context.Context, login, password string) (uuid.UUID, error) {
-				return validGUID, nil
+			srvFn: func(ctx context.Context, login, password string) (uuid.UUID, roles.Role, error) {
+				return validGUID, roles.RoleUser, nil
 			},
 			wantStatus: http.StatusOK,
 		},
@@ -261,8 +262,8 @@ func TestVerifyUser(t *testing.T) {
 				Login:    "valid",
 				Password: "valid",
 			},
-			srvFn: func(ctx context.Context, login, password string) (uuid.UUID, error) {
-				return uuid.Nil, models.ErrAuthenticationFailed
+			srvFn: func(ctx context.Context, login, password string) (uuid.UUID, roles.Role, error) {
+				return uuid.Nil, roles.RoleUser, models.ErrAuthenticationFailed
 			},
 			wantStatus: http.StatusUnauthorized,
 		},
@@ -272,8 +273,8 @@ func TestVerifyUser(t *testing.T) {
 				Login:    "valid",
 				Password: "valid",
 			},
-			srvFn: func(ctx context.Context, login, password string) (uuid.UUID, error) {
-				return uuid.Nil, models.ErrUnknown
+			srvFn: func(ctx context.Context, login, password string) (uuid.UUID, roles.Role, error) {
+				return uuid.Nil, roles.RoleUser, models.ErrUnknown
 			},
 			wantStatus: http.StatusInternalServerError,
 		},

@@ -6,6 +6,7 @@ import (
 	"user_service/internal/models"
 
 	"pkg/respond"
+	"pkg/roles"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -15,8 +16,8 @@ type UserService interface {
 	CreateUser(ctx context.Context, user models.User) (uuid.UUID, error)
 	GetUserByGUID(ctx context.Context, guid uuid.UUID) (models.User, error)
 	GetUserByLogin(ctx context.Context, login string) (models.User, error)
-	VerifyUser(ctx context.Context, login, password string) (uuid.UUID, error)
-	MakeAdmin(ctx context.Context, guid uuid.UUID) error
+	VerifyUser(ctx context.Context, login, password string) (uuid.UUID, roles.Role, error)
+	SetRole(ctx context.Context, guid uuid.UUID, role roles.Role) error
 	UpdateUser(ctx context.Context, user models.User) error
 	ChangePassword(ctx context.Context, guid uuid.UUID, oldPassword, newPassword string) error
 }
@@ -92,24 +93,26 @@ func (h *Handlers) VerifyUser(c *gin.Context) {
 	}
 
 	ctx := c.Request.Context()
-	guid, err := h.srv.VerifyUser(ctx, user.Login, user.Password)
+	guid, role, err := h.srv.VerifyUser(ctx, user.Login, user.Password)
 	if err != nil {
 		errorHandler(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"guid": guid})
+	c.JSON(http.StatusOK, gin.H{"guid": guid, "role": role})
 }
 
-func (h *Handlers) MakeAdmin(c *gin.Context) {
+func (h *Handlers) SetRole(c *gin.Context) {
 	guid, err := uuid.Parse(c.Param("guid"))
 	if err != nil {
 		respond.BadRequest(c, "Невалидный GUID")
 		return
 	}
 
+	role := roles.Role(c.Param("role"))
+
 	ctx := c.Request.Context()
-	err = h.srv.MakeAdmin(ctx, guid)
+	err = h.srv.SetRole(ctx, guid, role)
 	if err != nil {
 		errorHandler(c, err)
 		return

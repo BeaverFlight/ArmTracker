@@ -2,6 +2,7 @@ package service_test
 
 import (
 	"context"
+	"pkg/roles"
 	"strings"
 	"testing"
 	"user_service/internal/models"
@@ -14,6 +15,7 @@ import (
 func TestCreateUser(t *testing.T) {
 	validLogin := "valid_login"
 	validPassword := "valid_password"
+	validEmail := "valid_email@yandex.ru"
 	guid := uuid.New()
 
 	tests := []struct {
@@ -28,6 +30,7 @@ func TestCreateUser(t *testing.T) {
 			user: models.User{
 				Login:    validLogin,
 				Password: validPassword,
+				Email:    validEmail,
 			},
 			repoFn: func(ctx context.Context, user models.User) (uuid.UUID, error) {
 				return guid, nil
@@ -40,6 +43,7 @@ func TestCreateUser(t *testing.T) {
 			user: models.User{
 				Login:    validLogin,
 				Password: "short",
+				Email:    validEmail,
 			},
 			wantErr: models.ErrPasswordIsShort,
 		},
@@ -48,6 +52,7 @@ func TestCreateUser(t *testing.T) {
 			user: models.User{
 				Login:    "ab",
 				Password: validPassword,
+				Email:    validEmail,
 			},
 			wantErr: models.ErrLoginIsShort,
 		},
@@ -56,6 +61,7 @@ func TestCreateUser(t *testing.T) {
 			user: models.User{
 				Login:    validLogin,
 				Password: strings.Repeat("long_password", 20),
+				Email:    validEmail,
 			},
 			wantErr: models.ErrPasswordIsLong,
 		},
@@ -64,6 +70,7 @@ func TestCreateUser(t *testing.T) {
 			user: models.User{
 				Login:    strings.Repeat("long_login", 20),
 				Password: validPassword,
+				Email:    validEmail,
 			},
 			wantErr: models.ErrLoginIsLong,
 		},
@@ -72,6 +79,7 @@ func TestCreateUser(t *testing.T) {
 			user: models.User{
 				Login:    validLogin,
 				Password: validPassword,
+				Email:    validEmail,
 			},
 			repoFn: func(ctx context.Context, user models.User) (uuid.UUID, error) {
 				return uuid.Nil, models.ErrLoginBusy
@@ -83,11 +91,21 @@ func TestCreateUser(t *testing.T) {
 			user: models.User{
 				Login:    validLogin,
 				Password: validPassword,
+				Email:    validEmail,
 			},
 			repoFn: func(ctx context.Context, user models.User) (uuid.UUID, error) {
 				return uuid.Nil, models.ErrUnknown
 			},
 			wantErr: models.ErrRegistrationFailed,
+		},
+		{
+			name: "невалидный email",
+			user: models.User{
+				Login:    validLogin,
+				Password: validPassword,
+				Email:    "invalid",
+			},
+			wantErr: models.ErrInvalidEmail,
 		},
 	}
 
@@ -259,7 +277,7 @@ func TestVerifyUser(t *testing.T) {
 	tests := []struct {
 		name     string
 		user     models.User
-		repoFn   func(ctx context.Context, login, password string) (uuid.UUID, error)
+		repoFn   func(ctx context.Context, login, password string) (uuid.UUID, roles.Role, error)
 		wantErr  error
 		wantGUID uuid.UUID
 	}{
@@ -269,8 +287,8 @@ func TestVerifyUser(t *testing.T) {
 				Login:    validLogin,
 				Password: validPassword,
 			},
-			repoFn: func(ctx context.Context, login, password string) (uuid.UUID, error) {
-				return validGUID, nil
+			repoFn: func(ctx context.Context, login, password string) (uuid.UUID, roles.Role, error) {
+				return validGUID, roles.RoleUser, nil
 			},
 			wantGUID: validGUID,
 		},
@@ -280,8 +298,8 @@ func TestVerifyUser(t *testing.T) {
 				Login:    "invalid_login",
 				Password: validPassword,
 			},
-			repoFn: func(ctx context.Context, login, password string) (uuid.UUID, error) {
-				return uuid.Nil, models.ErrLoginNotFound
+			repoFn: func(ctx context.Context, login, password string) (uuid.UUID, roles.Role, error) {
+				return uuid.Nil, roles.RoleUser, models.ErrLoginNotFound
 			},
 			wantErr: models.ErrAuthenticationFailed,
 		},
@@ -291,8 +309,8 @@ func TestVerifyUser(t *testing.T) {
 				Login:    validLogin,
 				Password: "invalid_password",
 			},
-			repoFn: func(ctx context.Context, login, password string) (uuid.UUID, error) {
-				return uuid.Nil, models.ErrInvalidPassword
+			repoFn: func(ctx context.Context, login, password string) (uuid.UUID, roles.Role, error) {
+				return uuid.Nil, roles.RoleUser, models.ErrInvalidPassword
 			},
 			wantErr: models.ErrAuthenticationFailed,
 		},
@@ -303,8 +321,8 @@ func TestVerifyUser(t *testing.T) {
 				Login:    validLogin,
 				Password: validPassword,
 			},
-			repoFn: func(ctx context.Context, login, password string) (uuid.UUID, error) {
-				return uuid.Nil, models.ErrUnknown
+			repoFn: func(ctx context.Context, login, password string) (uuid.UUID, roles.Role, error) {
+				return uuid.Nil, roles.RoleAdmin, models.ErrUnknown
 			},
 			wantErr: models.ErrUnknown,
 		},
@@ -317,7 +335,7 @@ func TestVerifyUser(t *testing.T) {
 
 			s := service.NewUserService(repo)
 
-			guid, err := s.VerifyUser(context.Background(), test.user.Login, test.user.Password)
+			guid, _, err := s.VerifyUser(context.Background(), test.user.Login, test.user.Password)
 
 			assert.ErrorIs(t, err, test.wantErr)
 
@@ -332,13 +350,15 @@ func TestMakeAdmin(t *testing.T) {
 	tests := []struct {
 		name    string
 		guid    uuid.UUID
-		repoFn  func(ctx context.Context, guid uuid.UUID) error
+		role    roles.Role
+		repoFn  func(ctx context.Context, guid uuid.UUID, role roles.Role) error
 		wantErr error
 	}{
 		{
 			name: "успешное создание",
 			guid: validGUID,
-			repoFn: func(ctx context.Context, guid uuid.UUID) error {
+			role: roles.RoleUser,
+			repoFn: func(ctx context.Context, guid uuid.UUID, role roles.Role) error {
 				return nil
 			},
 		},
@@ -350,7 +370,7 @@ func TestMakeAdmin(t *testing.T) {
 		{
 			name: "guid не найден",
 			guid: uuid.New(),
-			repoFn: func(ctx context.Context, guid uuid.UUID) error {
+			repoFn: func(ctx context.Context, guid uuid.UUID, role roles.Role) error {
 				return models.ErrGUIDNotFound
 			},
 			wantErr: models.ErrGUIDNotFound,
@@ -358,7 +378,7 @@ func TestMakeAdmin(t *testing.T) {
 		{
 			name: "неизвестная ошибка",
 			guid: uuid.New(),
-			repoFn: func(ctx context.Context, guid uuid.UUID) error {
+			repoFn: func(ctx context.Context, guid uuid.UUID, role roles.Role) error {
 				return models.ErrUnknown
 			},
 			wantErr: models.ErrUnknown,
@@ -368,12 +388,12 @@ func TestMakeAdmin(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			repo := &mockUserRepository{
-				MakeAdminFn: test.repoFn,
+				SetRoleFn: test.repoFn,
 			}
 
 			s := service.NewUserService(repo)
 
-			err := s.MakeAdmin(context.Background(), test.guid)
+			err := s.SetRole(context.Background(), test.guid, test.role)
 
 			assert.ErrorIs(t, err, test.wantErr)
 		})

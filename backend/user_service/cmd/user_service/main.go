@@ -36,7 +36,7 @@ func main() {
 
 	r.PATCH("/user", handler.UpdateUser)
 
-	r.PUT("/user/:guid/admin", handler.MakeAdmin)
+	r.PUT("/user/:guid/:role", handler.SetRole)
 	r.PUT("/user/password", handler.ChangePassword)
 
 	r.GET("/user/:guid", handler.GetUserByGUID)

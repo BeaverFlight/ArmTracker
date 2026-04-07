@@ -2,6 +2,7 @@ package service_test
 
 import (
 	"context"
+	"pkg/roles"
 	"user_service/internal/models"
 
 	"github.com/google/uuid"
@@ -11,8 +12,8 @@ type mockUserRepository struct {
 	GetUserByGUIDFn  func(ctx context.Context, guid uuid.UUID) (models.User, error)
 	GetUserByLoginFn func(ctx context.Context, login string) (models.User, error)
 	CreateUserFn     func(ctx context.Context, user models.User) (uuid.UUID, error)
-	VerifyUserFn     func(ctx context.Context, login, password string) (uuid.UUID, error)
-	MakeAdminFn      func(ctx context.Context, guid uuid.UUID) error
+	VerifyUserFn     func(ctx context.Context, login, password string) (uuid.UUID, roles.Role, error)
+	SetRoleFn        func(ctx context.Context, guid uuid.UUID, role roles.Role) error
 	UpdateUserFn     func(ctx context.Context, user models.User) error
 	ChangePasswordFn func(ctx context.Context, guid uuid.UUID, oldPassword, newPassword string) error
 }
@@ -29,12 +30,12 @@ func (m *mockUserRepository) CreateUser(ctx context.Context, user models.User) (
 	return m.CreateUserFn(ctx, user)
 }
 
-func (m *mockUserRepository) VerifyUser(ctx context.Context, login, password string) (uuid.UUID, error) {
+func (m *mockUserRepository) VerifyUser(ctx context.Context, login, password string) (uuid.UUID, roles.Role, error) {
 	return m.VerifyUserFn(ctx, login, password)
 }
 
-func (m *mockUserRepository) MakeAdmin(ctx context.Context, guid uuid.UUID) error {
-	return m.MakeAdminFn(ctx, guid)
+func (m *mockUserRepository) SetRole(ctx context.Context, guid uuid.UUID, role roles.Role) error {
+	return m.SetRoleFn(ctx, guid, role)
 }
 
 func (m *mockUserRepository) UpdateUser(ctx context.Context, user models.User) error {
