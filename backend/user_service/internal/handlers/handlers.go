@@ -109,10 +109,17 @@ func (h *Handlers) SetRole(c *gin.Context) {
 		return
 	}
 
-	role := roles.Role(c.Param("role"))
+	role := struct {
+		role roles.Role
+	}{}
+
+	if err := c.ShouldBindBodyWithJSON(&role); err != nil {
+		respond.BadRequest(c, "Невалидная роль")
+		return
+	}
 
 	ctx := c.Request.Context()
-	err = h.srv.SetRole(ctx, guid, role)
+	err = h.srv.SetRole(ctx, guid, role.role)
 	if err != nil {
 		errorHandler(c, err)
 		return

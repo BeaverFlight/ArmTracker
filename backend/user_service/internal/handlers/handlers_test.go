@@ -308,3 +308,64 @@ func TestVerifyUser(t *testing.T) {
 		})
 	}
 }
+func TestSetRole(t *testing.T) {
+	validGUID := uuid.New()
+	validRole := struct {
+		Role roles.Role `json:"role"`
+	}{
+		Role: roles.RoleUser,
+	}
+	tests := []struct {
+		name       string
+		guid       uuid.UUID
+		role       any
+		srvFn      func(ctx context.Context, guid uuid.UUID, role roles.Role) error
+		wantStatus int
+	}{
+		{
+			name: "успешная смена роли",
+			guid: validGUID,
+			role: validRole,
+			srvFn: func(ctx context.Context, guid uuid.UUID, role roles.Role) error {
+				return nil
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:       "Невалидная роль",
+			guid:       validGUID,
+			role:       "Invalid",
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name: "Неизвестная ошибка сервиса",
+			guid: validGUID,
+			role: validRole,
+			srvFn: func(ctx context.Context, guid uuid.UUID, role roles.Role) error {
+				return models.ErrUnknown
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			srv := &mockUserService{
+				SetRoleFn: test.srvFn,
+			}
+
+			h := handlers.NewHandlers(srv)
+
+			router := setupRouter(http.MethodPatch, "/user/:guid/role", h.SetRole)
+
+			body, _ := json.Marshal(test.role)
+
+			req := httptest.NewRequest(http.MethodPatch, "/user/"+test.guid.String()+"/role", bytes.NewBuffer(body))
+			req.Header.Set("Content-Type", "application/json")
+
+			w := httptest.NewRecorder()
+			router.ServeHTTP(w, req)
+
+			assert.Equal(t, test.wantStatus, w.Code)
+		})
+	}
+}

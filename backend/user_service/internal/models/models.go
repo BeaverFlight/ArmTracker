@@ -21,7 +21,7 @@ type User struct {
 }
 
 type UserChangePassword struct {
-	OldPassword string
-	NewPassword string
-	GUID        uuid.UUID
+	OldPassword string    `json:"old_password"`
+	NewPassword string    `json:"new_password"`
+	GUID        uuid.UUID `json:"guid"`
 }
