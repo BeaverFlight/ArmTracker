@@ -110,7 +110,7 @@ func (h *Handlers) SetRole(c *gin.Context) {
 	}
 
 	role := struct {
-		role roles.Role
+		Role roles.Role `json:"role"`
 	}{}
 
 	if err := c.ShouldBindBodyWithJSON(&role); err != nil {
@@ -119,7 +119,7 @@ func (h *Handlers) SetRole(c *gin.Context) {
 	}
 
 	ctx := c.Request.Context()
-	err = h.srv.SetRole(ctx, guid, role.role)
+	err = h.srv.SetRole(ctx, guid, role.Role)
 	if err != nil {
 		errorHandler(c, err)
 		return
