@@ -3,9 +3,12 @@ package handlers
 import (
 	"auth_service/internal/models"
 	"context"
+	"crypto/rsa"
+	"fmt"
 	"net/http"
 	"pkg/respond"
 	"pkg/roles"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -14,7 +17,8 @@ import (
 type AuthService interface {
 	GetToken(ctx context.Context, guid uuid.UUID, role roles.Role) (string, string, error)
 	DeleteRefresh(ctx context.Context, refresh string) error
-	RefreshTokens(ctx context.Context, refresh string) (string, string, error)
+	RefreshTokens(ctx context.Context, access, refresh string) (string, string, error)
+	PublicKey() *rsa.PublicKey
 }
 
 type Handlers struct {
@@ -60,6 +64,7 @@ func (h *Handlers) Authorization(c *gin.Context) {
 	)
 
 	c.JSON(http.StatusOK, gin.H{"access": access})
+
 }
 
 func (h *Handlers) Logout(c *gin.Context) {
@@ -81,7 +86,7 @@ func (h *Handlers) Logout(c *gin.Context) {
 	c.SetCookie(
 		"refresh",
 		"",
-		h.refreshCookieMaxAge,
+		-1,
 		"/auth/refresh",
 		"",
 		true,
@@ -93,15 +98,19 @@ func (h *Handlers) Logout(c *gin.Context) {
 
 func (h *Handlers) Refresh(c *gin.Context) {
 	refresh, err := c.Cookie("refresh")
-
 	if err != nil {
 		respond.BadRequest(c, "Не найден refresh токен")
 		return
 	}
 
+	access, err := h.findAccess(c)
+	if err != nil {
+		respond.BadRequest(c, err.Error())
+	}
+
 	ctx := c.Request.Context()
 
-	access, refresh, err := h.srv.RefreshTokens(ctx, refresh)
+	access, refresh, err = h.srv.RefreshTokens(ctx, access, refresh)
 	if err != nil {
 		errorHandler(c, err)
 		return
@@ -118,4 +127,20 @@ func (h *Handlers) Refresh(c *gin.Context) {
 	)
 
 	c.JSON(http.StatusOK, gin.H{"access": access})
+}
+
+func (h *Handlers) findAccess(c *gin.Context) (string, error) {
+
+	authHeader := c.GetHeader("Authorization")
+	if authHeader == "" {
+		return "", fmt.Errorf("не найден заголовок Authorization")
+	}
+
+	access, ok := strings.CutPrefix(authHeader, "Bearer ")
+	if !ok || access == "" {
+		return "", fmt.Errorf("неаерный формат Authorization заголовка")
+	}
+
+	return access, nil
+
 }

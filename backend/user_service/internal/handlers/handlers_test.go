@@ -83,7 +83,8 @@ func TestCreateUser(t *testing.T) {
 
 			r := setupRouter(http.MethodPost, "/user", h.CreateUser)
 
-			body, _ := json.Marshal(test.body)
+			body, err := json.Marshal(test.body)
+			assert.NoError(t, err)
 
 			req := httptest.NewRequest(http.MethodPost, "/user", bytes.NewBuffer(body))
 			req.Header.Set("Content-Type", "application/json")

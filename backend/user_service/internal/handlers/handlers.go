@@ -113,7 +113,7 @@ func (h *Handlers) SetRole(c *gin.Context) {
 		Role roles.Role `json:"role"`
 	}{}
 
-	if err := c.ShouldBindBodyWithJSON(&role); err != nil {
+	if err = c.ShouldBindBodyWithJSON(&role); err != nil {
 		respond.BadRequest(c, "Невалидная роль")
 		return
 	}

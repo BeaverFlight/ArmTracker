@@ -155,42 +155,37 @@ func (d *Database) selectParameters(user models.User, sep string) (string, []any
 	index := 1
 
 	if user.Name != "" {
-		if index != 1 {
-			query += sep
-		}
-		query += fmt.Sprintf("name=$%d", index)
+		d.param(&index, &query, sep, "name=$%d")
 		args = append(args, user.Name)
 		index++
 	}
 
 	if user.Height != 0 {
-		if index != 1 {
-			query += sep
-		}
-		query += fmt.Sprintf("height=$%d", index)
+		d.param(&index, &query, sep, "height=$%d")
 		args = append(args, user.Height)
 		index++
 	}
 
 	if user.Weight != 0 {
-		if index != 1 {
-			query += sep
-		}
-		query += fmt.Sprintf("weight=$%d", index)
+		d.param(&index, &query, sep, "weight=$%d")
 		args = append(args, user.Weight)
 		index++
 	}
 
 	if user.Age != 0 {
-		if index != 1 {
-			query += sep
-		}
-		query += fmt.Sprintf("age=$%d", index)
+		d.param(&index, &query, sep, "age=$%d")
 		args = append(args, user.Age)
 		index++
 	}
 
 	return query, args, index
+}
+
+func (d *Database) param(index *int, query *string, sep, name string) {
+	if *index != 1 {
+		*query += sep
+	}
+	*query += fmt.Sprintf(name, index)
 }
 
 func (d *Database) ChangePassword(ctx context.Context, userID uuid.UUID, oldPassword, newPassword string) error {

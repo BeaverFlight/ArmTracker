@@ -13,7 +13,7 @@ import (
 )
 
 func TestCreateUser(t *testing.T) {
-	validLogin := "valid_login"
+	const validLogin = "valid_login"
 	validPassword := "valid_password"
 	validEmail := "valid_email@yandex.ru"
 	guid := uuid.New()
@@ -128,7 +128,7 @@ func TestCreateUser(t *testing.T) {
 
 func TestGetUserByGUID(t *testing.T) {
 	validGUID := uuid.New()
-	validLogin := "valid_login"
+	const validLogin = "valid_login"
 
 	tests := []struct {
 		name      string

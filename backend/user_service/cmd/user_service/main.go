@@ -13,7 +13,6 @@ import (
 )
 
 func main() {
-	r := gin.Default()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -23,6 +22,10 @@ func main() {
 		log.Panic(err)
 	}
 	pool, err := psql.NewPSQL(ctx, *cfg)
+	
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	repo := database.NewDatabase(pool)
 	defer repo.Close()
@@ -30,6 +33,17 @@ func main() {
 	srv := service.NewUserService(repo)
 
 	handler := handlers.NewHandlers(srv)
+
+	r := setupRouter(*handler)
+
+	err = r.Run()
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func setupRouter(handler handlers.Handlers) *gin.Engine {
+	r := gin.Default()
 
 	r.POST("/user", handler.CreateUser)
 	r.POST("/user/auth", handler.VerifyUser)
@@ -41,5 +55,6 @@ func main() {
 
 	r.GET("/user/:guid", handler.GetUserByGUID)
 	r.GET("/user", handler.GetUserByLogin) // query
-	r.Run()
+
+	return r
 }
