@@ -22,10 +22,11 @@ type UserRepository interface {
 
 type Service struct {
 	repo UserRepository
+	vld  *validator.Validate
 }
 
-func NewUserService(repo UserRepository) *Service {
-	return &Service{repo: repo}
+func NewUserService(repo UserRepository, vld *validator.Validate) *Service {
+	return &Service{repo: repo, vld: vld}
 }
 
 func (s *Service) CreateUser(ctx context.Context, user models.User) (uuid.UUID, error) {
@@ -39,7 +40,7 @@ func (s *Service) CreateUser(ctx context.Context, user models.User) (uuid.UUID, 
 	if err != nil {
 		return uuid.Nil, err
 	}
-	err = validator.New().Var(user.Email, "email")
+	err = s.vld.Var(user.Email, "email")
 	if err != nil {
 		return uuid.Nil, models.ErrInvalidEmail
 	}

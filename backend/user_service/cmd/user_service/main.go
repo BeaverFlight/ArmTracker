@@ -10,6 +10,7 @@ import (
 	"user_service/internal/service"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-playground/validator/v10"
 )
 
 func main() {
@@ -22,7 +23,7 @@ func main() {
 		log.Panic(err)
 	}
 	pool, err := psql.NewPSQL(ctx, *cfg)
-	
+
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -30,7 +31,7 @@ func main() {
 	repo := database.NewDatabase(pool)
 	defer repo.Close()
 
-	srv := service.NewUserService(repo)
+	srv := service.NewUserService(repo, validator.New())
 
 	handler := handlers.NewHandlers(srv)
 
@@ -50,7 +51,7 @@ func setupRouter(handler handlers.Handlers) *gin.Engine {
 
 	r.PATCH("/user", handler.UpdateUser)
 
-	r.PUT("/user/:guid/:role", handler.SetRole)
+	r.PUT("/user/:guid/role", handler.SetRole)
 	r.PUT("/user/password", handler.ChangePassword)
 
 	r.GET("/user/:guid", handler.GetUserByGUID)

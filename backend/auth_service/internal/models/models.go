@@ -17,5 +17,5 @@ type RefreshData struct {
 	Guid       uuid.UUID
 	PairID     uuid.UUID
 	Role       roles.Role
-	RefreshTTl time.Duration
+	RefreshTTL time.Duration
 }

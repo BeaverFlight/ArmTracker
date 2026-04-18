@@ -36,7 +36,7 @@ func NewService(repo AuthRepository, privateKey *rsa.PrivateKey, accessTTL, refr
 	return &Service{repo: repo, privateKey: privateKey, accessTTL: accessTTL, refreshTTL: refreshTTL}
 }
 
-func (s *Service) GetToken(ctx context.Context, guid uuid.UUID, role roles.Role) (access_token, refresh_token string, err error) {
+func (s *Service) GetToken(ctx context.Context, guid uuid.UUID, role roles.Role) (accessToken, refreshToken string, err error) {
 	pairID := uuid.New()
 	refresh := uuid.New()
 
@@ -50,7 +50,7 @@ func (s *Service) GetToken(ctx context.Context, guid uuid.UUID, role roles.Role)
 		Guid:       guid,
 		PairID:     pairID,
 		Role:       role,
-		RefreshTTl: s.refreshTTL,
+		RefreshTTL: s.refreshTTL,
 	})
 
 	if err != nil {

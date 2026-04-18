@@ -106,8 +106,8 @@ func (h *Handlers) Refresh(c *gin.Context) {
 	access, err := h.findAccess(c)
 	if err != nil {
 		respond.BadRequest(c, err.Error())
+		return
 	}
-
 	ctx := c.Request.Context()
 
 	access, refresh, err = h.srv.RefreshTokens(ctx, access, refresh)

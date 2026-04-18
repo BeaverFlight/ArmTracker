@@ -8,6 +8,7 @@ import (
 	"user_service/internal/models"
 	"user_service/internal/service"
 
+	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 )
@@ -115,7 +116,7 @@ func TestCreateUser(t *testing.T) {
 				CreateUserFn: test.repoFn,
 			}
 
-			s := service.NewUserService(repo)
+			s := service.NewUserService(repo, validator.New())
 
 			gotGUID, err := s.CreateUser(context.Background(), test.user)
 
@@ -183,7 +184,7 @@ func TestGetUserByGUID(t *testing.T) {
 				GetUserByGUIDFn: test.repoFn,
 			}
 
-			s := service.NewUserService(repo)
+			s := service.NewUserService(repo, validator.New())
 
 			user, err := s.GetUserByGUID(context.Background(), test.user.GUID)
 
@@ -259,7 +260,7 @@ func TestGetUserByLogin(t *testing.T) {
 				GetUserByLoginFn: test.repoFn,
 			}
 
-			s := service.NewUserService(repo)
+			s := service.NewUserService(repo, validator.New())
 
 			user, err := s.GetUserByLogin(context.Background(), test.user.Login)
 
@@ -333,7 +334,7 @@ func TestVerifyUser(t *testing.T) {
 				VerifyUserFn: test.repoFn,
 			}
 
-			s := service.NewUserService(repo)
+			s := service.NewUserService(repo, validator.New())
 
 			guid, _, err := s.VerifyUser(context.Background(), test.user.Login, test.user.Password)
 
@@ -391,7 +392,7 @@ func TestMakeAdmin(t *testing.T) {
 				SetRoleFn: test.repoFn,
 			}
 
-			s := service.NewUserService(repo)
+			s := service.NewUserService(repo, validator.New())
 
 			err := s.SetRole(context.Background(), test.guid, test.role)
 
@@ -451,7 +452,7 @@ func TestUpdateUser(t *testing.T) {
 				UpdateUserFn: test.repoFn,
 			}
 
-			s := service.NewUserService(repo)
+			s := service.NewUserService(repo, validator.New())
 
 			err := s.UpdateUser(context.Background(), test.user)
 
@@ -519,7 +520,7 @@ func TestChangePassword(t *testing.T) {
 				ChangePasswordFn: test.repoFn,
 			}
 
-			s := service.NewUserService(repo)
+			s := service.NewUserService(repo, validator.New())
 
 			err := s.ChangePassword(context.Background(), test.guid, test.oldPassword, test.newPassword)
 

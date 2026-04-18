@@ -6,13 +6,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
+	"strconv"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
 )
 
-var prefix = "refresh:"
+const prefix = "refresh:"
 
 type RedisConfig struct {
 	Addr        string        `json:"addr"`
@@ -26,6 +28,46 @@ type RedisConfig struct {
 
 type Repository struct {
 	rdb *redis.Client
+}
+
+func LoadRedisConfig() (RedisConfig, error) {
+	db, err := strconv.Atoi(getEnv("REDIS_DB", "0"))
+	if err != nil {
+		return RedisConfig{}, fmt.Errorf("неверное значение REDIS_DB: %w", err)
+	}
+
+	maxRetries, err := strconv.Atoi(getEnv("REDIS_MAX_RETRIES", "3"))
+	if err != nil {
+		return RedisConfig{}, fmt.Errorf("неверное значение REDIS_MAX_RETRIES: %w", err)
+	}
+
+	dialTimeout, err := time.ParseDuration(getEnv("REDIS_DIAL_TIMEOUT", "5s"))
+	if err != nil {
+		return RedisConfig{}, fmt.Errorf("неверное значение REDIS_DIAL_TIMEOUT: %w", err)
+	}
+
+	timeout, err := time.ParseDuration(getEnv("REDIS_TIMEOUT", "3s"))
+	if err != nil {
+		return RedisConfig{}, fmt.Errorf("неверное значение REDIS_TIMEOUT: %w", err)
+	}
+
+	return RedisConfig{
+		Addr:        getEnv("REDIS_ADDR", "localhost:6379"),
+		Password:    getEnv("REDIS_PASSWORD", ""),
+		User:        getEnv("REDIS_USER", ""),
+		DB:          db,
+		MaxRetries:  maxRetries,
+		DialTimeout: dialTimeout,
+		Timeout:     timeout,
+	}, nil
+}
+
+// getEnv возвращает значение переменной окружения или дефолтное значение
+func getEnv(key, defaultValue string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return defaultValue
 }
 
 func NewClient(ctx context.Context, cfg RedisConfig) (*Repository, error) {
@@ -53,7 +95,7 @@ func (r *Repository) SaveRefresh(ctx context.Context, data models.RefreshData) e
 		return fmt.Errorf("ошибка маршализации RefreshData: %w", err)
 	}
 
-	if err := r.rdb.Set(ctx, prefix+data.Refresh.String(), payload, data.RefreshTTl).Err(); err != nil {
+	if err := r.rdb.Set(ctx, prefix+data.Refresh.String(), payload, data.RefreshTTL).Err(); err != nil {
 		return fmt.Errorf("ошибка redis set: %w", err)
 	}
 
