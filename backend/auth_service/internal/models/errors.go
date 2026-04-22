@@ -21,8 +21,8 @@ var knownErrors = []struct {
 	{ErrAccessCreation, http.StatusInternalServerError},
 	{ErrInvalidAccessToken, http.StatusBadRequest},
 	{ErrInvalidRefreshToken, http.StatusBadRequest},
-	{ErrTokenNotFound, http.StatusBadRequest},
-	{ErrTokenMismatch, http.StatusBadRequest},
+	{ErrTokenNotFound, http.StatusUnauthorized},
+	{ErrTokenMismatch, http.StatusUnauthorized},
 }
 
 func HTTPCode(err error) int {

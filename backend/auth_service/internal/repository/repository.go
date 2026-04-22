@@ -62,7 +62,6 @@ func LoadRedisConfig() (RedisConfig, error) {
 	}, nil
 }
 
-// getEnv возвращает значение переменной окружения или дефолтное значение
 func getEnv(key, defaultValue string) string {
 	if v := os.Getenv(key); v != "" {
 		return v
@@ -129,4 +128,8 @@ func (r *Repository) DeleteRefresh(ctx context.Context, refresh uuid.UUID) error
 
 	return nil
 
+}
+
+func (r *Repository) Close() {
+	r.rdb.Close()
 }

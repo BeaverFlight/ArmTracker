@@ -14,8 +14,8 @@ import (
 
 type AuthRepository interface {
 	SaveRefresh(ctx context.Context, data models.RefreshData) error
-	GetRefreshData(ctx context.Context, refresh uuid.UUID) (models.RefreshData, error)
-	DeleteRefreshData(ctx context.Context, refresh uuid.UUID) error
+	GetRefresh(ctx context.Context, refresh uuid.UUID) (models.RefreshData, error)
+	DeleteRefresh(ctx context.Context, refresh uuid.UUID) error
 }
 
 type Service struct {
@@ -94,17 +94,17 @@ func (s *Service) RefreshTokens(ctx context.Context, access, refresh string) (ac
 		return "", "", models.ErrInvalidAccessToken
 	}
 
-	data, err := s.repo.GetRefreshData(ctx, refreshID)
+	data, err := s.repo.GetRefresh(ctx, refreshID)
 	if err != nil {
 		return "", "", models.ErrUnknown
 	}
 
 	if claims.PairID != data.PairID {
-		s.repo.DeleteRefreshData(ctx, refreshID)
+		s.repo.DeleteRefresh(ctx, refreshID)
 		return "", "", models.ErrTokenMismatch
 	}
 
-	if err := s.repo.DeleteRefreshData(ctx, refreshID); err != nil {
+	if err := s.repo.DeleteRefresh(ctx, refreshID); err != nil {
 		return "", "", models.ErrUnknown
 	}
 
@@ -138,7 +138,7 @@ func (s *Service) DeleteRefresh(ctx context.Context, refresh string) error {
 		return models.ErrInvalidRefreshToken
 	}
 
-	err = s.repo.DeleteRefreshData(ctx, refreshID)
+	err = s.repo.DeleteRefresh(ctx, refreshID)
 	if err != nil {
 		return models.ErrUnknown
 	}
