@@ -5,10 +5,8 @@ import (
 	"auth_service/internal/repository"
 	"auth_service/internal/service"
 	"context"
-	"crypto/rand"
-	"crypto/rsa"
-	"log/slog"
 	"os"
+	"pkg/logger"
 	"strconv"
 	"time"
 
@@ -16,29 +14,27 @@ import (
 )
 
 func main() {
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	log := logger.New(getEnv("LOGGER", "local"))
 
-	// Генерация RSA ключа при старте
-	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	privateKey, err := service.LoadOrGeneratePrivateKey(getEnv("RSA_KEY_PATH", "./key/private.pem"), log)
 	if err != nil {
-		logger.Error("генерация RSA ключа", "err", err)
+		log.Error("инициализация RSA ключа", logger.Err(err))
 		os.Exit(1)
 	}
-	logger.Info("RSA-2048 ключ успешно сгенерирован")
+	log.Info("RSA-2048 ключ успешно сгенерирован")
 
-	// Redis
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	redisCfg, err := repository.LoadRedisConfig()
 	if err != nil {
-		logger.Error("загрузка конфига Redis", "err", err)
+		log.Error("загрузка конфига Redis", logger.Err(err))
 		os.Exit(1)
 	}
 
 	repo, err := repository.NewClient(ctx, redisCfg)
 	if err != nil {
-		logger.Error("подключение к Redis", "err", err)
+		log.Error("подключение к Redis", logger.Err(err))
 		os.Exit(1)
 	}
 	defer repo.Close()
@@ -67,8 +63,6 @@ func setupRouter(handler *handlers.Handlers) *gin.Engine {
 		auth.POST("/logout", handler.Logout)
 	}
 
-	// Эндпоинты для получения публичного ключа — gateway и другие сервисы
-	// обращаются сюда при старте, чтобы кэшировать ключ для валидации JWT
 	r.GET("/.well-known/jwks.json", handler.GetPublicKey)
 	r.GET("/.well-known/public-key.pem", handler.GetPublicKeyPEM)
 

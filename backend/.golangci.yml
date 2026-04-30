@@ -1,74 +1,77 @@
+version: "2"
+
 run:
   timeout: 3m
   tests: true
+
 output:
   formats:
-    - format: colored-line-number # Формат вывода: colored-line-number, json, tab, checkstyle
-  print-issued-lines: true # Печатать строку кода, где найдена проблема
-  print-linter-name: true # Показывать имя линтера рядом с проблемой
-  sort-results: true # Сортировать вывод — удобнее читать
+    text:
+      path: stdout
+      colors: true # было: format: colored-line-number
+      print-issued-lines: true # перенесено сюда из корня output
+      print-linter-name: true # перенесено сюда из корня output
+      # sort-results удалён — в v2 сортировка всегда включена
+
 linters:
   enable:
-    - gocyclo # классика, считает цикломатическую сложность
-    - cyclop # более гибкий линтер по сложности
-    - funlen # ограничение длины функции (часто помогает вместе с complexity)
+    - gocyclo
+    - cyclop
+    - funlen
     - gocognit
     - dupl
-    - goconst # Повторяющиеся строки → константы
-    - gocritic # Набор диагностик (производительность, стиль, баги)
-    - errcheck # Непроверенные ошибки
-    - govet # Стандартный vet + shadow
-    - staticcheck # Мощный статический анализатор (замена golint)
-    - unused # Неиспользуемый код
-    - bodyclose # Незакрытые http.Response.Body
-    - contextcheck # Неправильная передача context.Context
+    - goconst
+    - gocritic
+    - errcheck
+    - govet
+    - staticcheck
+    - unused
+    - bodyclose
+    - contextcheck
 
-linters-settings:
-  gocyclo:
-    min-complexity: 7 # порог: всё что >=10 будет ругаться
+  settings: # было: linters-settings (верхний уровень)
+    gocyclo:
+      min-complexity: 7
 
-  cyclop:
-    max-complexity: 7 # похожий порог для cyclop
-    package-average: 5 # можно включить/отключить проверку средней сложности по пакету
+    cyclop:
+      max-complexity: 7
+      package-average: 5
 
-  gocognit:
-    min-complexity: 10
+    gocognit:
+      min-complexity: 10
 
-  funlen:
-    lines: 30 # максимум строк в функции
-    statements: 40 # максимум операторов в функции
-    ignore-comments: true # не считать комментарии в длину
+    funlen:
+      lines: 30
+      statements: 40
+      ignore-comments: true
 
-  dupl:
-    thresold: 100
+    dupl:
+      threshold: 100 # было: thresold — опечатка
 
-  gocritic:
-    enabled-tags:
-      - diagnostic
-      - style
-      - performance
-    disabled-checks:
-      - hugeParam # Иногда шумит на нормальных struct-аргументах
+    gocritic:
+      enabled-tags:
+        - diagnostic
+        - style
+        - performance
+      disabled-checks:
+        - hugeParam
 
-  # --- Проверка ошибок ---
-  errcheck:
-    check-type-assertions: true # Проверять непроверенные type assertions: x.(Type)
-    check-blank: true # Ругаться на _, _ = someFunc() (игнорирование ошибок)
+    errcheck:
+      check-type-assertions: true
+      check-blank: true
 
-  # --- govet ---
-  govet:
-    enable:
-      - shadow
+    govet:
+      enable:
+        - shadow
 
-issues:
-  # Исключить тестовые файлы из проверки сложности и длины функций
-  exclude-rules:
-    - path: _test\.go
-      linters:
-        - funlen
-        - gocyclo
-        - cyclop
-        - gocognit
-        - dupl
-        - gocritic
-        - errcheck
+  exclusions: # было: issues.exclude-rules
+    rules:
+      - path: _test\.go
+        linters:
+          - funlen
+          - gocyclo
+          - cyclop
+          - gocognit
+          - dupl
+          - gocritic
+          - errcheck

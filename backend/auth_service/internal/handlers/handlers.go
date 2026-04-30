@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/rsa"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"pkg/respond"
 	"pkg/roles"
@@ -24,10 +25,11 @@ type AuthService interface {
 type Handlers struct {
 	srv                 AuthService
 	refreshCookieMaxAge int
+	log *slog.Logger
 }
 
-func NewHandlers(srv AuthService, refreshCookieMaxAge int) *Handlers {
-	return &Handlers{srv: srv, refreshCookieMaxAge: refreshCookieMaxAge}
+func NewHandlers(srv AuthService, refreshCookieMaxAge int, log *slog.Logger) *Handlers {
+	return &Handlers{srv: srv, refreshCookieMaxAge: refreshCookieMaxAge, log: log}
 }
 
 func errorHandler(c *gin.Context, err error) {
